@@ -1,15 +1,68 @@
 from dotenv import load_dotenv
 from openai import OpenAI
+from fastapi import FastAPI
+from pydantic import BaseModel
 import os
+import json
+
 load_dotenv(override=True)
+app = FastAPI(
+    title="my api"
+)
 
 # print (os.getenv("OPENAI_API_KEY"))
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-response = client.responses.create(
+# response = client.responses.create(
+#     model = "gpt-4o-mini",
+#     # input = "서울에 갈 만한 여행지 추천해줘"
+#     input=[
+#         {
+#             "role":"system",
+#             "content":(
+#                 "너는 json 생성기다"
+#                 "반드시 json형식으로만 출력해줘"
+#                 "설명, 말머리, 마크다운, 코드블록은 절대 포함하지마"
+#                 "제목,설명내용, 5개 json출력"
+#             )
+#         },
+#         {
+#             "role":"user",
+#             "content":"서울에 갈만한 여행지 추천해줘"
+#         }
+#     ]
+# )
+
+# print(response.output_text)
+
+class UserRequest(BaseModel):
+    content:str
+
+# @app.get("/")
+# def root():
+#     return {"message" : "hi openai"}
+
+@app.post("/generate")
+def openai(req:UserRequest):
+    prompt = f"""
+
+    {req.content}
+    
+    예시
+    1. 여행지명
+    - 관광, 음식, 자연
+    - 간단한 설명
+    - 교통편
+    -주소
+    2. 여행지명
+    - 관광, 음식, 자연
+    - 간단한 설명
+    - 교통편
+    -주소
+    """
+    response = client.responses.create(
     model = "gpt-4o-mini",
-    # input = "서울에 갈 만한 여행지 추천해줘"
     input=[
         {
             "role":"system",
@@ -22,9 +75,12 @@ response = client.responses.create(
         },
         {
             "role":"user",
-            "content":"서울에 갈만한 여행지 추천해줘"
+            "content": prompt
         }
     ]
 )
-
-print(response.output_text)
+    try:
+        parsed_output = json.loads(response.output_text)
+        return{"message":parsed_output}
+    except json.JSONDecodeError:
+        return{"output": response.output_text,"error":"json파싱실패"}
